@@ -186,5 +186,3 @@ debug_*.py  offline validation scripts
 - Other generated/large files (`.onnx`, `.ply`, `venv/`, build output)
 
 ---
-
-*Prototype/hackathon project. Sighted-blindfolded testing is a proxy, not real validation — genuine blind/low-vision co-design is the next step before deployment.*
