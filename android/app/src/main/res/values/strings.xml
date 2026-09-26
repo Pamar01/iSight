@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">iSight</string>
+    <string name="test_tone">Test Tone</string>
+    <string name="test_buzz">Test Buzz</string>
+    <string name="flow_center_crop">Flow mode — center crop (#14)</string>
+    <string name="sonify">Sonification — cue loop (#22)</string>
+    <string name="mode_scan_seek">Scan/seek mode — stopped, exploring (#25)</string>
+    <string name="speak_hindi">Speak in Hindi (हिंदी में सुनें)</string>
+    <string name="translate_signs">Translate signs to my language</string>
+    <string name="read_always">Always read text &amp; signs</string>
+    <string name="room_scan">Room scan (AR, experimental)</string>
+    <string name="admin_close">Close admin panel</string>
+    <string name="status_walking">WALKING</string>
+    <string name="mode_walking">WALKING</string>
+    <string name="mode_finding">FINDING</string>
+    <string name="mode_reading">READING</string>
+    <string name="sub_walking">Tap anywhere to check path</string>
+    <string name="sub_finding">Tap anywhere to say what to find</string>
+    <string name="sub_reading">Tap anywhere to read text &amp; signs</string>
+    <string name="status_sub_default">starting up…</string>
+    <string name="gesture_hint">Swipe left or right to switch modes\nSingle tap to interact · Double tap to repeat · Long press for voice assistant</string>
+    <string name="tb_around">What\'s ahead</string>
+    <string name="tb_status">Repeat last / status</string>
+    <string name="tb_find">Speak a command</string>
+    <string name="calibrate">Calibrate (1-tap baseline) (#7)</string>
+    <string name="find_voice">Find… (voice) (#26)</string>
+    <string name="debug_panel">Debug Panel — test one thing at a time</string>
+    <string name="hud_booting">booting…</string>
+</resources>

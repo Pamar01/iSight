@@ -1,0 +1,50 @@
+# --- Python (laptop model-conversion pipeline) ---
+isight-venv/
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# --- Generated / large artifacts ---
+export_assets/*
+!export_assets/.gitkeep
+!export_assets/README.md
+logs/*
+!logs/.gitkeep
+conversion_manifest.json
+*.zip
+.dist/
+
+# --- Model checkpoints (download from Ultralytics, or produced by convert.py) ---
+*.pt
+
+# --- On-device model weights — NEVER commit (GitHub 100 MB limit; side-loaded per README) ---
+#     MediaPipe LLM (.task), LiteRT-LM (.litertlm), embedding gate (.onnx), GGUF, safetensors.
+#     See android/app/src/llm/README.md and android/app/src/voicegate/README.md.
+*.task
+*.litertlm
+*.onnx
+*.onnx_data
+*.gguf
+*.safetensors
+/models/
+/android/models/
+
+# --- room3d demo outputs (saved point clouds / meshes, recorded scrcpy captures) ---
+*.ply
+laptop/**/*.mkv
+laptop/room3d/.venv/
+
+# --- Ad-hoc screenshots (the CV test fixtures used by debug_*.py ARE kept) ---
+baro_check*.png
+dash_check*.png
+
+# --- Editor / tooling ---
+.idea/
+*.iml
+.claude/
+.qai_hub/
+.DS_Store
+Thumbs.db
+*.exe
+

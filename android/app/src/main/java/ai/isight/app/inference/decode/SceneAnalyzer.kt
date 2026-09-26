@@ -1,0 +1,174 @@
+package ai.isight.app.inference.decode
+
+import android.graphics.Bitmap
+import ai.isight.app.inference.CameraHealth
+import ai.isight.app.inference.Detection
+import ai.isight.app.inference.SettledSighting
+import ai.isight.app.sensors.ImuTracker
+
+/**
+ * The per-frame scene-analysis block that was duplicated in TfliteInferenceEngine and
+ * QnnInferenceEngine — extracted so it lives ONCE. Both engines construct one of these and
+ * call [analyze]; nothing about the result contract changes.
+ *
+ * Owns: camera ego-motion (Lucas-Kanade), the V3 drop-off hazard fusion (IMU corridor +
+ * RGB edge lattice + depth-as-evidence + object-mask suppression -> HazardStateMachine),
+ * and the coarse moving/approaching annotation.
+ *
+ * THROTTLE ([hazardEveryN]): the expensive parts — the RANSAC ego-motion estimate and the
+ * Hough/RANSAC evidence gathering — run every Nth frame and the last result is reused in
+ * between. The grayscale downsample and `prevGray` update happen EVERY frame (so the next
+ * heavy estimate still compares adjacent frames), and [HazardStateMachine.update] is called
+ * EVERY frame with the (possibly reused) evidence, so its time-based decay is never skipped.
+ * hazardEveryN = 1 is the exact original behaviour.
+ */
+class SceneAnalyzer(
+    private val imuTracker: ImuTracker? = null,
+    /** every Nth call runs the expensive RANSAC/Hough evidence gather; reused in between.
+     *  Runtime-adjustable by the thermal governor (via the engine's setHazardEveryN). */
+    @Volatile var hazardEveryN: Int = 1,
+) {
+    private val motion = MotionTracker()
+    private val groundPlaneAnalyzer = GroundPlaneAnalyzer()
+    private val hazardStateMachine = HazardStateMachine()
+    // Object-memory support: rough metric distance + a "has it come to rest" gate. Always on
+    // (cheap on the small depth grid); their output only matters once MainActivity wires the
+    // memory feature, and is harmless otherwise.
+    private val metricScaler = MetricDepthScaler()
+    private val restingVerifier = RestingStateVerifier()
+    // Chest-mount tamper / occlusion / knock-off detection.
+    private val cameraHealthMonitor = CameraHealthMonitor()
+
+    private var prevGray: FloatArray? = null
+    private var tick = 0L
+    private var lastEvidence: RawEvidence? = null
+    private var lastEgo: Pair<Float, Float> = 0f to 0f
+
+    data class Result(
+        val detections: List<Detection>,   // ego-motion-annotated (moving / approaching)
+        val hazardState: HazardState?,
+        val hazardConfidence: Float,
+        val hazardUrgency: Float,
+        val hazardFirstEdgeY: Float?,
+        val egoMotionX: Float,
+        val egoMotionY: Float,
+        val settledObject: SettledSighting? = null,
+        val cameraHealth: CameraHealth = CameraHealth.OK,
+    )
+
+    fun analyze(frame: Bitmap, depthFrame: DepthSampler.Frame, detections: List<Detection>): Result {
+        val curGray = OpticalFlow.toGrayscale(frame, GRAY_W, GRAY_H)
+        val runHeavy = lastEvidence == null || (tick++ % hazardEveryN.coerceAtLeast(1) == 0L)
+
+        val camHealth = cameraHealthMonitor.update(
+            curGray,
+            imuTracker?.pitchDeg ?: 0f,
+            imuTracker?.rollDeg ?: 0f,
+            imuTracker?.hasMountCalibration ?: false,
+            System.currentTimeMillis(),
+        )
+        val camBlocked = camHealth == CameraHealth.BLOCKED || camHealth == CameraHealth.MISALIGNED
+
+        val flowPrev = prevGray   // hold the true previous frame — prevGray is overwritten below
+        val ego: Pair<Float, Float> = if (runHeavy) {
+            prevGray?.let { pg ->
+                val (dxPx, dyPx) = OpticalFlow.estimateEgoMotion(pg, curGray, GRAY_W, GRAY_H)
+                (dxPx / GRAY_W) to (dyPx / GRAY_H)
+            } ?: (0f to 0f)
+        } else {
+            lastEgo
+        }
+        lastEgo = ego
+        prevGray = curGray
+
+        val corridor = TraversableCorridor.from(
+            imuTracker?.pitchDeg ?: 0f,
+            imuTracker?.rollDeg ?: 0f,
+        )
+
+        // Context can disable the whole drop-off / hazard pipeline (e.g. TRANSIT — a moving
+        // vehicle makes ego-motion + optical flow produce nothing but phantom hazards). Skip
+        // all the evidence gathering too, not just the state-machine update.
+        val hazardDisabled = hazardEveryN <= 0
+        val evidence: RawEvidence? = if (hazardDisabled) null else if (runHeavy) {
+            val lattice = EdgeLattice.detect(curGray, GRAY_W, GRAY_H, corridor)
+            val (depthVerdict, _) = groundPlaneAnalyzer.depthEvidence(depthFrame, corridor)
+            val edgeBand = lattice.nearestRowFraction?.let { (it - 0.05f) to (it + 0.05f) }
+            val objectOverlap =
+                edgeBand?.let { (lo, hi) -> GroundView.objectCoverage(detections, corridor, lo, hi) } ?: 0f
+            val nearFieldY1 = corridor.y1 + 0.6f * (corridor.y2 - corridor.y1)
+            val nearFieldObjectCoverage =
+                GroundView.objectCoverage(detections, corridor, nearFieldY1, corridor.y2)
+            // Specular Trap veto A: is the candidate edge a cast shadow (luminance step, no
+            // hue step)? Full-res RGB frame, only when there's an edge to test.
+            val shadowLikelihood = lattice.nearestRowFraction?.let {
+                ShadowChromaticity.shadowLikelihood(frame, it, corridor)
+            } ?: 0f
+            // Veto B: is the edge band moving coplanar with the floor (puddle / wet marble)?
+            val groundCoplanar = lattice.nearestRowFraction?.let {
+                GroundFlowConsistency.coplanarConfidence(flowPrev, curGray, GRAY_W, GRAY_H, corridor, it, ego)
+            } ?: 0f
+            RawEvidence(
+                latticeScore = lattice.score,
+                nearestEdgeY = lattice.nearestRowFraction,
+                depthVerdict = depthVerdict,
+                highRotation = imuTracker?.isHighRotation ?: false,
+                lowLight = camHealth == CameraHealth.DIM,
+                sensorBlocked = camBlocked,
+                objectOverlap = objectOverlap,
+                nearFieldObjectCoverage = nearFieldObjectCoverage,
+                shadowLikelihood = shadowLikelihood,
+                groundCoplanar = groundCoplanar,
+            )
+        } else {
+            lastEvidence
+        }
+        if (evidence != null) lastEvidence = evidence
+
+        val nowMs = System.currentTimeMillis()
+        val hz = if (evidence == null) null else hazardStateMachine.update(evidence, nowMs)
+        val annotated = motion.annotate(detections, ego)
+
+        // Object-memory: keep the floor->metric fit fresh (throttled), tag each named
+        // detection with a rough distance, and ask whether any has come to rest.
+        if (runHeavy) {
+            metricScaler.updateFloorFit(
+                depthFrame, corridor,
+                imuTracker?.pitchDeg ?: 0f, imuTracker?.rollDeg ?: 0f,
+            )
+        }
+        val namedWithDist = annotated.mapNotNull { d ->
+            if (d.label == null) null else d to metricScaler.metersForBox(depthFrame, d.box)
+        }
+        val settled = restingVerifier.update(namedWithDist, nowMs).firstOrNull()
+
+        return Result(
+            detections = annotated,
+            hazardState = hz?.state,
+            hazardConfidence = hz?.confidence ?: 0f,
+            hazardUrgency = hz?.urgency ?: 0f,
+            hazardFirstEdgeY = hz?.firstEdgeY,
+            egoMotionX = ego.first,
+            egoMotionY = ego.second,
+            settledObject = settled,
+            cameraHealth = camHealth,
+        )
+    }
+
+    fun reset() {
+        motion.reset()
+        hazardStateMachine.reset()
+        metricScaler.reset()
+        restingVerifier.reset()
+        cameraHealthMonitor.reset()
+        prevGray = null
+        tick = 0L
+        lastEvidence = null
+        lastEgo = 0f to 0f
+    }
+
+    private companion object {
+        const val GRAY_W = 160
+        const val GRAY_H = 120
+    }
+}

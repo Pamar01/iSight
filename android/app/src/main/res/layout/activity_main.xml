@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ss_bg">
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/preview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- BLIND-FIRST SURFACE. The whole screen is the control: top third = "what's around me",
+         middle = repeat / status, bottom = find something. Double-tap = cues on/off,
+         two-finger tap = pause, swipe up/down = walk/explore, long-press = spoken menu,
+         three-finger tap = help. Touches are read by MainActivity.dispatchTouchEvent, not by
+         this view, so it stays non-clickable. -->
+    <LinearLayout
+        android:id="@+id/blindSurface"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp"
+        android:background="@color/ss_blind_scrim">
+
+        <TextView
+            android:id="@+id/statusBig"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textStyle="bold"
+            android:textColor="@color/ss_blind_text"
+            android:textSize="64sp"
+            android:text="@string/status_walking" />
+
+        <TextView
+            android:id="@+id/statusSub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:textColor="@color/ss_blind_sub"
+            android:textSize="20sp"
+            android:text="@string/status_sub_default" />
+
+        <TextView
+            android:id="@+id/talkbackHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:gravity="center"
+            android:textColor="@color/ss_blind_sub"
+            android:textSize="14sp"
+            android:text="@string/gesture_hint" />
+    </LinearLayout>
+
+    <!-- Shown only when TalkBack / explore-by-touch is ON: real focusable buttons instead of
+         the custom zone gestures (which would fight TalkBack). -->
+    <LinearLayout
+        android:id="@+id/tbButtons"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="20dp"
+        android:visibility="gone">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTbAround"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginBottom="12dp"
+            android:textSize="22sp"
+            android:text="@string/tb_around" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTbStatus"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginBottom="12dp"
+            android:textSize="22sp"
+            android:text="@string/tb_status" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTbFind"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:textSize="22sp"
+            android:text="@string/tb_find" />
+    </LinearLayout>
+
+    <!-- ADMIN / DEV PANEL — hidden by default. Long-press the bottom-right corner, or the
+         "Admin panel" item in the spoken menu, to show it. Everything here is exactly the
+         old developer UI; the blind-first surface above drives the same state. -->
+    <ScrollView
+        android:id="@+id/adminPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/ss_panel"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/controls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/hud"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:padding="10dp"
+                android:background="@color/ss_hud_scrim"
+                android:fontFamily="monospace"
+                android:textColor="@color/ss_accent"
+                android:textSize="12sp"
+                android:text="@string/hud_booting" />
+
+            <View
+                android:id="@+id/tierBadge"
+                android:layout_width="match_parent"
+                android:layout_height="6dp"
+                android:layout_marginBottom="8dp"
+                android:background="#33FFFFFF" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchMode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:textColor="@color/ss_text"
+                android:text="@string/mode_scan_seek" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchSonify"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:textColor="@color/ss_text"
+                android:text="@string/sonify" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchCenterCrop"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:textColor="@color/ss_text"
+                android:text="@string/flow_center_crop" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchHindi"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:textColor="@color/ss_text"
+                android:text="@string/speak_hindi" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchTranslate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:textColor="@color/ss_text"
+                android:text="@string/translate_signs" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchReadMode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:textColor="@color/ss_text"
+                android:text="@string/read_always" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCalibrate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/calibrate" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFind"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/find_voice" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDebugPanel"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/debug_panel" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRoomScan"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/room_scan" />
+
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnTestTone"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/test_tone" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnTestBuzz"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/test_buzz" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCloseAdmin"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/admin_close" />
+        </LinearLayout>
+    </ScrollView>
+
+</FrameLayout>
