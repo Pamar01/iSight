@@ -22,13 +22,7 @@ iSight is a **cane complement, not a replacement**. Core rule: **the AI is never
 | Drop-off detection | Detects steps/stairs down before your foot reaches the edge (5 independent checks) |
 | Specular Trap fix | Ignores puddles/shadows/shiny floors that look like cliffs (3 physics checks) |
 | Overhead hazards | Detects branches, open cabinets, poles at head height |
-| Voice commands | "What's ahead?", "find a chair", "read that sign", "where's my phone?", "call mum" |
-| Activity modes | 6 auto-detected modes (walking/standing/home/sitting/transit/conversation); hazard detection turns off on a bus |
-| On-device LLM | 1B-parameter Gemma model handles anything the command grammar can't |
-| Sign reading | Offline OCR (Latin + Devanagari) with Hindi↔English translation |
-| Thermal handling | Sheds non-critical work as the phone heats up, keeps safety loop alive |
-| Emergency | Hold both volume keys 2s → panic tone + status + "say who to call" |
-| 3D demo | Phone streams frames to a laptop, which builds a live 3D point-cloud of the room |
+| Voice commands | "What's ahead?", "find a chair", "read that sign", "where's my phone?"|
 
 ---
 
@@ -86,7 +80,6 @@ Full details: [`ISIGHT_BIBLE.md`](ISIGHT_BIBLE.md)
 | Sonification | Live, tested |
 | Drop-off detection | Live, tested — not yet field-tested on real drops |
 | Specular-Trap | Live, tested — needs real puddle/shadow footage |
-| Camera tamper detection | Live |
 | Activity context system | Live, tested |
 | Context auto-detection | Live — thresholds need real-world testing |
 | Thermal governor | Live — full soak test pending |
@@ -97,9 +90,6 @@ Full details: [`ISIGHT_BIBLE.md`](ISIGHT_BIBLE.md)
 | Sign reading + translation | Live — needs one-time model download |
 | Blind-first UI | Live — needs hands-on testing with a blind user |
 | Hazard sound detection | Live — thresholds not field-validated |
-| Laptop 3D demo | Works end-to-end |
-| Persistent AR room map | Partially built — routing not done (parked) |
-| Open-vocab grounding + on-NPU Whisper | Roadmap only |
 
 ---
 
@@ -113,7 +103,6 @@ Currently a demo only (laptop-side). Long-term direction: a **persistent, on-dev
 - Zone awareness (kitchen vs hallway)
 - Change detection (new obstacle vs known layout)
 - Fewer false drop-off alerts
-- Shareable workspace/venue maps
 
 **Gap:** Reconstruction demo works; persistence, labelling, on-phone execution, and routing are not built yet.
 
